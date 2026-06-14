@@ -1,0 +1,56 @@
+name: PDF Translation
+
+on:
+  # 手动触发
+  workflow_dispatch:
+  # 每天凌晨自动运行（可选）
+  schedule:
+    - cron: '0 2 * * *'
+  # 推送 PDF 文件时触发
+  push:
+    paths:
+      - '统计目录/Make Your Own Neural Network.pdf'
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install PyPDF2 googletrans==4.0.0-rc1 fpdf
+        # 安装中文字体（Ubuntu）
+        sudo apt-get update
+        sudo apt-get install -y fonts-wqy-zenhei
+
+    - name: Run PDF translation
+      run: |
+        python pdf_translator_cli.py \
+          "统计目录/Make Your Own Neural Network.pdf" \
+          "translated/neural_network" \
+          --lang zh-cn \
+          --format both
+
+    - name: Upload translated files
+      uses: actions/upload-artifact@v4
+      with:
+        name: translated-files
+        path: |
+          translated/neural_network.txt
+          translated/neural_network.pdf
+
+    - name: Commit translated files (optional)
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add translated/
+        git diff --cached --quiet || git commit -m "Auto-translate PDF: $(date +%Y-%m-%d)"
+        git push
